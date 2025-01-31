@@ -70,36 +70,25 @@ func uploadPage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "../view/upload.html")
 }
 func upload(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseMultipartForm(32 << 20) // 32 MB limit
-	if err != nil {
-		http.Error(w, "Unable to parse form", http.StatusBadRequest)
-		return
-	}
+	r.ParseMultipartForm(32 << 20)
 	file, handler, err := r.FormFile("file")
 	if err != nil {
-		http.Error(w, "Unable to get file", http.StatusBadRequest)
+		fmt.Println(err)
 		return
 	}
 	defer file.Close()
-	dir := "./test"
-	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		http.Error(w, "Unable to create directory", http.StatusInternalServerError)
-		return
-	}
-	f, err := os.OpenFile(dir+"/"+handler.Filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	//add to db
+	fmt.Fprintf(w, "%v", handler.Filename)
+	filepath := "./uploads/" + handler.Filename
+	f, err := os.OpenFile(filepath, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
-		http.Error(w, "Unable to create file", http.StatusInternalServerError)
+		fmt.Println(err)
 		return
 	}
-	newImage := Image{FILENAME: dir + "/" + handler.Filename, ID: strconv.Itoa(rand.Int()), USERID: current_user["id"]}
-	imageDB = append(imageDB, newImage)
 	defer f.Close()
-	if _, err := io.Copy(f, file); err != nil {
-		http.Error(w, "Unable to save file", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/home", http.StatusCreated)
+	io.Copy(f, file)
+	newImage := Image{FILENAME: filepath, ID: strconv.Itoa(rand.Int()), USERID: current_user["id"]}
+	imageDB = append(imageDB, newImage)
+	http.Redirect(w, r, "/home", http.StatusAccepted)
 }
 func logout(w http.ResponseWriter, r *http.Request) {
 	current_user["id"] = ""
